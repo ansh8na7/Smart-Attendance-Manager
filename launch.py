@@ -2,35 +2,21 @@
 # Import module
 from tkinter import *
 import tkinter as tk
-from tkinter import Message, Text
 import cv2
 import os
-# import shutil
 import csv
 import numpy as np
 import pickle
 from dotenv import load_dotenv
-# from PIL import Image, ImageTk
-# import pandas as pd
 import datetime
 import time
-# import tkinter.ttk as ttk
-# import tkinter.font as font
-# import time
-# import re
-# from tensorflow.keras.utils import img_to_array
-# import imutils
-# import cv2
-# from keras.models import load_model
-# import numpy as np
 import serial
-# from PIL.ImageTk import PhotoImage
 from PIL import ImageTk, Image
 from twilio.rest import Client
 
 load_dotenv()
 
-fingerprintAvailable = True
+fingerprintAvailable = False
 
 try:
     fingerData = serial.Serial(
@@ -46,20 +32,20 @@ except serial.serialutil.SerialException:
     print("Connect the Fingerprint setups")
     # exit(1)
 
+
 # read fingerprint
 
+# def readFinger():
+#     return 1
 
 def readFinger():
-    return 1
-
-# def readFinger():
-#     updateMessage("Place finger on sensor")
-#     while True:
-#         fId = fingerData.read(1)
-#         fId = fId.decode('UTF-8', 'ignore')
-#         if fId.isdigit():
-#             print('FIngerprint Confirmation Recived', fId)
-#             return fId
+    updateMessage("Place finger on sensor")
+    while True:
+        fId = fingerData.read(1)
+        fId = fId.decode('UTF-8', 'ignore')
+        if fId.isdigit():
+            print('FIngerprint Confirmation Recived', fId)
+            return fId
 
 
 # parameters for loading data and images
@@ -71,6 +57,7 @@ ts = time.time()
 date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
 
 
+# handle files and directories
 basedir = os.path.dirname(__file__)
 attendanceDir = os.path.join(basedir, 'AttendanceCSV')
 attendancePkl = os.path.join(basedir, 'AttendancePKL')
@@ -143,9 +130,6 @@ def TakeImages():
     if not (phone.isdigit() and len(phone) == 10):
         updateMessage("Enter a valid phone number of 10 digits")
         return
-    # Id = 5
-    # name = 'ansh'
-    # phone = '1234567890'
     cam = cv2.VideoCapture(0)
     harcascadePath = "haarcascade_frontalface_default.xml"
     face_cascade = cv2.CascadeClassifier(harcascadePath)
@@ -178,11 +162,7 @@ def TakeImages():
 def getImagesAndLabels(path):
     # get the path of all the files in the folder
     imagePaths = [os.path.join(path, f) for f in os.listdir(path)]
-    # print(imagePaths)
-
-    # create empth face list
     faces = []
-    # create empty ID list
     Ids = []
     # now looping through all the image paths and loading the Ids and the images
     for imagePath in imagePaths:
@@ -199,8 +179,6 @@ def getImagesAndLabels(path):
 
 
 def TrainImages():
-    #recognizer =cv2.face_LBPHFaceRecognizer.create()
-    # cv2.face.LBPHFaceRecognizer_create()#$  cv2.face_LBPHFaceRecognizer.create()
     recognizer = cv2.face_LBPHFaceRecognizer.create()
     harcascadePath = "haarcascade_frontalface_default.xml"
     detector = cv2.CascadeClassifier(harcascadePath)
@@ -261,7 +239,6 @@ def TakeAttendance():
                 cv2.putText(img, "proxy attempt by "+studentDetailsDB[ids][0], (x, y-5),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (150, 255, 0), 2)
                 proxyAttempt = studentDetailsDB[ids][0]
-            # print(ids, conf)
         cv2.imshow("Attendance", img)
         if cv2.waitKey(100) & 0xFF == ord('q'):
             break
@@ -375,11 +352,6 @@ message = tk.Label(window, text="", bg="White", fg="Black", width=36,
 message.place(x=570, y=300)
 
 # buttons placement
-
-
-def temp():
-    message.configure(text="button not in use")
-    return
 
 
 def updateMessage(msg):
