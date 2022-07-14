@@ -17,7 +17,7 @@ import platform
 
 load_dotenv()
 
-fingerprintAvailable = True
+fingerprintAvailable = False
 
 port = ''
 if platform.system() == 'Darwin':
