@@ -35,17 +35,17 @@ except serial.serialutil.SerialException:
 
 # read fingerprint
 
-# def readFinger():
-#     return 1
-
 def readFinger():
-    updateMessage("Place finger on sensor")
-    while True:
-        fId = fingerData.read(1)
-        fId = fId.decode('UTF-8', 'ignore')
-        if fId.isdigit():
-            print('FIngerprint Confirmation Recived', fId)
-            return fId
+    return 1
+
+# def readFinger():
+#     updateMessage("Place finger on sensor")
+#     while True:
+#         fId = fingerData.read(1)
+#         fId = fId.decode('UTF-8', 'ignore')
+#         if fId.isdigit():
+#             print('FIngerprint Confirmation Recived', fId)
+#             return fId
 
 
 # parameters for loading data and images
@@ -247,7 +247,7 @@ def TakeAttendance():
         cv2.imshow("Attendance", img)
         if cv2.waitKey(100) & 0xFF == ord('q'):
             break
-        if c > 50:
+        if c > 20:
             break
     cam.release()
     cv2.destroyAllWindows()
