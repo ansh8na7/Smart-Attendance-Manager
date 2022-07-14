@@ -13,14 +13,21 @@ import time
 import serial
 from PIL import ImageTk, Image
 from twilio.rest import Client
+import platform
 
 load_dotenv()
 
 fingerprintAvailable = True
 
+port = ''
+if platform.system() == 'Darwin':
+    port = '/dev/tty.usbserial-1410'
+elif platform.system() == 'Windows':
+    port = 'COM6'
+
 try:
     fingerData = serial.Serial(
-        '/dev/tty.usbserial-1410',
+        port,
         baudrate=9600,
         parity=serial.PARITY_NONE,
         stopbits=serial.STOPBITS_ONE,
@@ -35,17 +42,17 @@ except serial.serialutil.SerialException:
 
 # read fingerprint
 
-def readFinger():
-    return 1
-
 # def readFinger():
-#     updateMessage("Place finger on sensor")
-#     while True:
-#         fId = fingerData.read(1)
-#         fId = fId.decode('UTF-8', 'ignore')
-#         if fId.isdigit():
-#             print('FIngerprint Confirmation Recived', fId)
-#             return fId
+#     return 1
+
+def readFinger():
+    updateMessage("Place finger on sensor")
+    while True:
+        fId = fingerData.read(1)
+        fId = fId.decode('UTF-8', 'ignore')
+        if fId.isdigit():
+            print('FIngerprint Confirmation Recived', fId)
+            return fId
 
 
 # parameters for loading data and images
