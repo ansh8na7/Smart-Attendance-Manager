@@ -6,4 +6,3 @@ test.*
 /TrainingImageLabel
 /AttendanceCSV
 /AttendancePKL
-analysis.py
