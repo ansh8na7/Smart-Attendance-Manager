@@ -15,3 +15,7 @@ Now run the ```launch.py``` file to run the project
 ```sh
 python3 launch.py
  ``` 
+ run ```analysis.py``` for analysis on the attendance database
+ ```sh
+ python3 analysis.py
+```
