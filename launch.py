@@ -16,7 +16,7 @@ from twilio.rest import Client
 
 load_dotenv()
 
-fingerprintAvailable = False
+fingerprintAvailable = True
 
 try:
     fingerData = serial.Serial(
@@ -107,6 +107,9 @@ if not os.path.exists(os.path.join(attendancePkl, 'attendanceDB')):
 with open(os.path.join(attendancePkl, 'attendanceDB'), 'rb') as attendancefile:
     attendanceDB = pickle.load(attendancefile)
 
+if date not in attendanceDB.keys():
+    attendanceDB[date] = set()
+
 absenteesDB = dict()
 if not os.path.exists(os.path.join(attendancePkl, 'absentDB')):
     with open(os.path.join(attendancePkl, 'absentDB'), 'wb') as absentFile:
@@ -190,6 +193,8 @@ def TrainImages():
 
 def RegisterFace():
     row = TakeImages()
+    if row == None:
+        return
     TrainImages()
     with open(os.path.join(studentDetailsDir, 'StudentDetails.csv'), 'a+') as studentcsv:
         writer = csv.writer(studentcsv)
@@ -205,9 +210,6 @@ def writeAttendance(ids):
     with open(os.path.join(attendanceDir, attendanceFileName), 'a+') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow([ids])
-
-    if date not in attendanceDB.keys():
-        attendanceDB[date] = set()
     attendanceDB[date].add(ids)
     with open(os.path.join(attendancePkl, "attendanceDB"), 'wb') as pklfile:
         pickle.dump(attendanceDB, pklfile)
@@ -215,6 +217,9 @@ def writeAttendance(ids):
 
 def TakeAttendance():
     fingerId = readFinger()
+    if fingerId == 9:
+        updateMessage("Fingerprint not found\nRegister Fingerprint")
+        return
     recognizer = cv2.face.LBPHFaceRecognizer_create()
     recognizer.read(os.path.join(trainingImgLabelDir, 'trainingData.yml'))
     harcascadePath = "haarcascade_frontalface_default.xml"
@@ -279,7 +284,7 @@ def sendAbsentSMS():
             from_=twilio_phone_no,
             to='+91'+phno
         )
-        updateMessage("messages sent to abesntees")
+        updateMessage("messages sent to absentees")
 
 
 # GUI
@@ -325,6 +330,7 @@ idLabel.place(x=350, y=120)
 
 idEntry = tk.Entry(window, width=24, bg="#E4DCCF",
                    fg="Black", font=('Arial', 22))
+idEntry.insert(0, len(studentDetailsDB)+1)
 idEntry.place(x=570, y=120)
 
 nameLabel = tk.Label(window, text="Enter Name", width=18,
@@ -363,6 +369,8 @@ if not fingerprintAvailable:
     updateMessage(
         "Please connect fingerprint \nsensor and restart application")
     btnState = 'disabled'
+else:
+    updateMessage("Fingerprint Sensor Connected\nReady to go")
 
 
 registerImgBtn = tk.Button(window, text="Register", command=RegisterFace, state=btnState, fg="Black", bg="orange",
