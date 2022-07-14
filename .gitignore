@@ -1,5 +1,8 @@
 .DS_Store
+.env
+test.*
 /StudentDetails
 /TrainingImage
 /TrainingImageLabel
-/Attendance
+/AttendanceCSV
+/AttendancePKL

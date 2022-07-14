@@ -8,6 +8,8 @@ import os
 # import shutil
 import csv
 import numpy as np
+import pickle
+from dotenv import load_dotenv
 # from PIL import Image, ImageTk
 # import pandas as pd
 import datetime
@@ -24,6 +26,11 @@ import time
 import serial
 # from PIL.ImageTk import PhotoImage
 from PIL import ImageTk, Image
+from twilio.rest import Client
+
+load_dotenv()
+
+fingerprintAvailable = True
 
 try:
     fingerData = serial.Serial(
@@ -34,6 +41,7 @@ try:
         bytesize=serial.EIGHTBITS,
         timeout=1  # must use when using data.readline()
     )
+    fingerprintAvailable = True
 except serial.serialutil.SerialException:
     print("Connect the Fingerprint setups")
     # exit(1)
@@ -41,17 +49,17 @@ except serial.serialutil.SerialException:
 # read fingerprint
 
 
-# def readFinger():
-#     return 2
-
 def readFinger():
-    updateMessage("Place finger on sensor")
-    while True:
-        fId = fingerData.read(1)
-        fId = fId.decode('UTF-8', 'ignore')
-        if fId.isdigit():
-            print('FIngerprint Confirmation Recived', fId)
-            return fId
+    return 1
+
+# def readFinger():
+#     updateMessage("Place finger on sensor")
+#     while True:
+#         fId = fingerData.read(1)
+#         fId = fId.decode('UTF-8', 'ignore')
+#         if fId.isdigit():
+#             print('FIngerprint Confirmation Recived', fId)
+#             return fId
 
 
 # parameters for loading data and images
@@ -64,7 +72,8 @@ date = datetime.datetime.fromtimestamp(ts).strftime('%d-%m-%Y')
 
 
 basedir = os.path.dirname(__file__)
-attendanceDir = os.path.join(basedir, 'Attendance')
+attendanceDir = os.path.join(basedir, 'AttendanceCSV')
+attendancePkl = os.path.join(basedir, 'AttendancePKL')
 imageDir = os.path.join(basedir, 'Images')
 studentDetailsDir = os.path.join(basedir, 'StudentDetails')
 trainingImgDir = os.path.join(basedir, 'TrainingImage')
@@ -72,6 +81,8 @@ trainingImgLabelDir = os.path.join(basedir, 'TrainingImageLabel')
 
 if not os.path.exists(attendanceDir):
     os.mkdir(attendanceDir)
+if not os.path.exists(attendancePkl):
+    os.mkdir(attendancePkl)
 if not os.path.exists(studentDetailsDir):
     os.mkdir(studentDetailsDir)
 if not os.path.exists(trainingImgDir):
@@ -87,15 +98,35 @@ if not os.path.exists(os.path.join(studentDetailsDir, 'StudentDetails.csv')):
 
 attendanceFileName = 'Attendance-'+date+'.csv'
 if not os.path.exists(os.path.join(attendanceDir, attendanceFileName)):
-    with open(os.path.join(attendanceDir, attendanceFileName), 'a+') as csvfile:
-        csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(["Id", "Name", "Phone"])
-
-if not os.path.exists(os.path.join(attendanceDir, attendanceFileName)):
-    print("file not found")
-    with open(os.path.join(attendanceDir, attendanceFileName), 'a+') as csvfile:
+    with open(os.path.join(attendanceDir, attendanceFileName), 'w') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow([date])
+
+
+studentDetailsDB = dict()
+if not os.path.exists(os.path.join(studentDetailsDir, 'StudentDetailsDB')):
+    with open(os.path.join(studentDetailsDir, 'StudentDetailsDB'), 'wb') as studentDbFile:
+        pickle.dump(studentDetailsDB, studentDbFile)
+
+with open(os.path.join(studentDetailsDir, 'StudentDetailsDB'), 'rb') as studentDbFile:
+    studentDetailsDB = pickle.load(studentDbFile)
+
+
+attendanceDB = dict()
+if not os.path.exists(os.path.join(attendancePkl, 'attendanceDB')):
+    with open(os.path.join(attendancePkl, 'attendanceDB'), 'wb') as attendancefile:
+        pickle.dump(attendanceDB, attendancefile)
+
+with open(os.path.join(attendancePkl, 'attendanceDB'), 'rb') as attendancefile:
+    attendanceDB = pickle.load(attendancefile)
+
+absenteesDB = dict()
+if not os.path.exists(os.path.join(attendancePkl, 'absentDB')):
+    with open(os.path.join(attendancePkl, 'absentDB'), 'wb') as absentFile:
+        pickle.dump(absenteesDB, absentFile)
+
+with open(os.path.join(attendancePkl, 'absentDB'), 'rb') as absentFile:
+    absenteesDB = pickle.load(absentFile)
 
 
 def TakeImages():
@@ -140,11 +171,8 @@ def TakeImages():
     cam.release()
     cv2.destroyAllWindows()
     row = [Id, name, phone]
-    with open(os.path.join(studentDetailsDir, 'StudentDetails.csv'), 'a+') as studentcsv:
-        writer = csv.writer(studentcsv)
-        writer.writerow(row)
-    studentcsv.close()
     updateMessage("Images taken for Id: "+str(Id)+" Name:"+name)
+    return row
 
 
 def getImagesAndLabels(path):
@@ -183,8 +211,28 @@ def TrainImages():
 
 
 def RegisterFace():
-    TakeImages()
+    row = TakeImages()
     TrainImages()
+    with open(os.path.join(studentDetailsDir, 'StudentDetails.csv'), 'a+') as studentcsv:
+        writer = csv.writer(studentcsv)
+        writer.writerow(row)
+    studentDetailsDB[int(row[0])] = row[1:]
+    with open(os.path.join(studentDetailsDir, 'StudentDetailsDB'), 'wb') as studentDbFile:
+        pickle.dump(studentDetailsDB, studentDbFile)
+
+    message.configure(text="Registered")
+
+
+def writeAttendance(ids):
+    with open(os.path.join(attendanceDir, attendanceFileName), 'a+') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow([ids])
+
+    if date not in attendanceDB.keys():
+        attendanceDB[date] = set()
+    attendanceDB[date].add(ids)
+    with open(os.path.join(attendancePkl, "attendanceDB"), 'wb') as pklfile:
+        pickle.dump(attendanceDB, pklfile)
 
 
 def TakeAttendance():
@@ -206,13 +254,13 @@ def TakeAttendance():
             cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 3)
             ids, conf = recognizer.predict(gray[y:y+h, x:x+w])
             if conf < 50 and ids == int(fingerId):
-                cv2.putText(img, str(ids), (x, y-5),
+                cv2.putText(img, studentDetailsDB[ids][0], (x, y-5),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (150, 255, 0), 2)
-                attendanceGiven = str(ids)
+                attendanceGiven = studentDetailsDB[ids][0]
             else:
-                cv2.putText(img, "proxy attempt by "+str(ids), (x, y-5),
+                cv2.putText(img, "proxy attempt by "+studentDetailsDB[ids][0], (x, y-5),
                             cv2.FONT_HERSHEY_SIMPLEX, 1, (150, 255, 0), 2)
-                proxyAttempt = str(ids)
+                proxyAttempt = studentDetailsDB[ids][0]
             # print(ids, conf)
         cv2.imshow("Attendance", img)
         if cv2.waitKey(100) & 0xFF == ord('q'):
@@ -222,9 +270,39 @@ def TakeAttendance():
     cam.release()
     cv2.destroyAllWindows()
     if attendanceGiven != "":
+        writeAttendance(ids)
         updateMessage("attendance given to "+attendanceGiven)
     elif proxyAttempt != "":
         updateMessage("proxy attempt by "+proxyAttempt)
+
+
+def getAbsentees():
+    allIds = set([keys for keys in studentDetailsDB.keys()])
+    presentIds = attendanceDB[date]
+    absenteesDB[date] = allIds.difference(presentIds)
+    with open(os.path.join(attendancePkl, 'absentDB'), 'wb') as absentFile:
+        pickle.dump(absenteesDB, absentFile)
+    return absenteesDB[date]
+
+
+def sendAbsentSMS():
+    account_sid = os.environ['TWILIO_ACCOUNT_SID']
+    auth_token = os.environ['TWILIO_AUTH_TOKEN']
+    twilio_phone_no = os.environ['TWILIO_PHONE_NO']
+    print(twilio_phone_no)
+    client = Client(account_sid, auth_token)
+    absentees = getAbsentees()
+
+    for absentee in absentees:
+        Id = absentee
+        name = studentDetailsDB[absentee][0]
+        phno = studentDetailsDB[absentee][1]
+        message = client.messages.create(
+            body=''+name+" is absent on "+date,
+            from_=twilio_phone_no,
+            to='+91'+phno
+        )
+        updateMessage("messages sent to abesntees")
 
 
 # GUI
@@ -268,7 +346,7 @@ idLabel = tk.Label(window, text="Enter ID", width=18, height=2,
                    fg="Black", bg="orange", font=('Arial', 15, ' bold '))
 idLabel.place(x=350, y=120)
 
-idEntry = tk.Entry(window, width=24, bg="White",
+idEntry = tk.Entry(window, width=24, bg="#E4DCCF",
                    fg="Black", font=('Arial', 22))
 idEntry.place(x=570, y=120)
 
@@ -276,7 +354,7 @@ nameLabel = tk.Label(window, text="Enter Name", width=18,
                      fg="Black", bg="orange", height=2, font=('Arial', 15, ' bold '))
 nameLabel.place(x=350, y=180)
 
-nameEntry = tk.Entry(window, width=24, bg="White",
+nameEntry = tk.Entry(window, width=24, bg="#E4DCCF",
                      fg="Black", font=('Arial', 22))
 nameEntry.place(x=570, y=180)
 
@@ -284,7 +362,7 @@ phLabel = tk.Label(window, text="Enter Phone NO", width=18, fg="Black",
                    bg="orange", height=2, font=('Arial', 15, ' bold '))
 phLabel.place(x=350, y=240)
 
-phEntry = tk.Entry(window, width=24, bg="White",
+phEntry = tk.Entry(window, width=24, bg="#E4DCCF",
                    fg="Black", font=('Arial', 22, ' bold '))
 phEntry.place(x=570, y=240)
 
@@ -295,15 +373,6 @@ updateLabel.place(x=350, y=300)
 message = tk.Label(window, text="", bg="White", fg="Black", width=36,
                    height=3, activebackground="Green", font=('Arial', 15, ' bold '))
 message.place(x=570, y=300)
-
-attendance = tk.Label(window, text=" Attendance: ", width=18, fg="Black",
-                      bg="orange", height=3, font=('Arial', 15, ' bold '))
-attendance.place(x=350, y=550)
-
-
-attMessage = tk.Label(window, text="", bg="White", fg="Black", width=36,
-                      height=3, activebackground="Green", font=('Arial', 15, ' bold '))
-attMessage.place(x=550, y=550)
 
 # buttons placement
 
@@ -317,22 +386,26 @@ def updateMessage(msg):
     message.configure(text=msg)
 
 
-takeImgBtn = tk.Button(window, text="Take Images", command=temp, fg="Black", highlightbackground='#3E4149',
-                       width=15, height=2, activebackground="blue", font=('times', 15, ' bold '))
-takeImgBtn.place(x=300, y=420)
-registerImgBtn = tk.Button(window, text="Register", command=RegisterFace, fg="Black", bg="orange",
+btnState = "normal"
+if not fingerprintAvailable:
+    updateMessage(
+        "Please connect fingerprint \nsensor and restart application")
+    btnState = 'disabled'
+
+
+registerImgBtn = tk.Button(window, text="Register", command=RegisterFace, state=btnState, fg="Black", bg="orange",
                            width=15, height=2, activebackground="blue", font=('times', 15, ' bold '))
-registerImgBtn.place(x=500, y=420)
-takeAttBtn = tk.Button(window, text="Take Attendance", command=TakeAttendance, fg="Black",
+registerImgBtn.place(x=255, y=420)
+takeAttBtn = tk.Button(window, text="Take Attendance", command=TakeAttendance, state=btnState, fg="Black",
                        bg="orange", width=15, height=2, activebackground="blue", font=('times', 15, ' bold '))
-takeAttBtn.place(x=700, y=420)
-sensSMSbtn = tk.Button(window, text="Send Absent SMS", command=temp, fg="Black", bg="orange",
+takeAttBtn.place(x=565, y=420)
+sendSMSbtn = tk.Button(window, text="Send Absent SMS", command=sendAbsentSMS, state=btnState, fg="Black", bg="orange",
                        width=15, height=2, activebackground="blue", font=('times', 15, ' bold '))
-sensSMSbtn.place(x=900, y=420)
+sendSMSbtn.place(x=870, y=420)
 
 
 def exitWindow():
-
+    getAbsentees()
     updateMessage('exiting software...')
     window.after(500, window.destroy)
 
@@ -340,5 +413,23 @@ def exitWindow():
 exitBtn = tk.Button(window, text="Exit", command=exitWindow, fg="Black", bg="orange",
                     width=15, height=3, activebackground="blue", font=('times', 15, ' bold '))
 exitBtn.place(x=1150, y=22)
+
+# Project Maker Details
+anshDetails = tk.Label(window, text="Anshuman Narayan\n1RN18IS020", bg="orange", fg="Black", width=18,
+                       height=4, activebackground="Green", font=('Arial', 18, ' bold '))
+anshDetails.place(x=225, y=555)
+
+abhiDetails = tk.Label(window, text="Abhishek Choudhary\n1RN18IS004", bg="orange", fg="Black", width=18,
+                       height=4, activebackground="Green", font=('Arial', 18, ' bold '))
+abhiDetails.place(x=450, y=555)
+
+arnavDetails = tk.Label(window, text="Arnav Kumar\n1RN18IS026", bg="orange", fg="Black", width=18,
+                        height=4, activebackground="Green", font=('Arial', 18, ' bold '))
+arnavDetails.place(x=673, y=555)
+
+karDetails = tk.Label(window, text="Karishma Singh\n1RN18IS058", bg="orange", fg="Black", width=18,
+                      height=4, activebackground="Green", font=('Arial', 18, ' bold '))
+karDetails.place(x=900, y=555)
+
 
 window.mainloop()
