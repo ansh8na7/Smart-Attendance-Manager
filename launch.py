@@ -1,5 +1,4 @@
-
-# Import module
+# Import modules
 from tkinter import *
 import tkinter as tk
 import cv2
@@ -13,6 +12,7 @@ import time
 import serial
 from PIL import ImageTk, Image
 from twilio.rest import Client
+from twilio.base import exceptions
 import platform
 
 load_dotenv()
@@ -43,7 +43,7 @@ except serial.serialutil.SerialException:
 # read fingerprint
 
 # def readFinger():
-#     return 1
+#     return 2
 
 def readFinger():
     updateMessage("Place finger on sensor")
@@ -51,7 +51,7 @@ def readFinger():
         fId = fingerData.read(1)
         fId = fId.decode('UTF-8', 'ignore')
         if fId.isdigit():
-            print('FIngerprint Confirmation Recived', fId)
+            print('Fingerprint Confirmation Recived', fId)
             return fId
 
 
@@ -224,7 +224,8 @@ def writeAttendance(ids):
 
 def TakeAttendance():
     fingerId = readFinger()
-    if fingerId == 9:
+    if fingerId == '9':
+        print("not found register")
         updateMessage("Fingerprint not found\nRegister Fingerprint")
         return
     recognizer = cv2.face.LBPHFaceRecognizer_create()
@@ -262,6 +263,7 @@ def TakeAttendance():
         writeAttendance(ids)
         updateMessage("attendance given to "+attendanceGiven)
     elif proxyAttempt != "":
+        print("proxy attempt by "+proxyAttempt)
         updateMessage("proxy attempt by "+proxyAttempt)
 
 
@@ -281,17 +283,34 @@ def sendAbsentSMS():
     print(twilio_phone_no)
     client = Client(account_sid, auth_token)
     absentees = getAbsentees()
-
+    messageExceptionOccurred = False
     for absentee in absentees:
         Id = absentee
         name = studentDetailsDB[absentee][0]
         phno = studentDetailsDB[absentee][1]
-        message = client.messages.create(
-            body=''+name+" is absent on "+date,
-            from_=twilio_phone_no,
-            to='+91'+phno
-        )
-        updateMessage("messages sent to absentees")
+        try:
+            message = client.messages.create(
+                body=''+name+" is absent on "+date,
+                from_=twilio_phone_no,
+                to='+91'+phno
+            )
+
+        except exceptions.TwilioRestException:
+            print("Twilio exception occurred")
+            print("sending meessages to admin number")
+            message = client.messages.create(
+                body=''+name+" is absent on "+date,
+                from_=twilio_phone_no,
+                to='+919461291573'
+            )
+            messageExceptionOccurred = True
+        finally:
+            updateMessage("messages sent to absentees")
+    # if messageExceptionOccurred:
+    #     updateMessage(
+    #         "Twilio Exception Occurred. This happens on\ntwilio trial account on unregistered numbers\nSending some messages to admin")
+    # else:
+    #     updateMessage("messages sent to absentees")
 
 
 # GUI

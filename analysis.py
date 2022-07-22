@@ -20,7 +20,7 @@ trainingImgDir = os.path.join(basedir, 'TrainingImage')
 trainingImgLabelDir = os.path.join(basedir, 'TrainingImageLabel')
 
 window = tk.Tk()
-window.title("Smart Attendance System")
+window.title("Smart Attendance System - Analysis")
 window.geometry('1280x720')
 
 bg = PhotoImage(file="./Images/bg4.png")
@@ -41,7 +41,7 @@ def resize_bg(e):
 
 window.bind("<Configure>", resize_bg)
 
-title = Label(window, text="Smart Attendance System", width=70, height=3,
+title = Label(window, text="Smart Attendance System - Analysis", width=70, height=3,
               fg="Black", bg="orange", font=('Arial', 18, ' bold '))
 title.place(x=250, y=25)
 
