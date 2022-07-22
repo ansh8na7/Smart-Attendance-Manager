@@ -159,7 +159,7 @@ def TakeImages():
 
         if cv2.waitKey(100) & 0xFF == ord('q'):
             break
-        if sampleNum > 10:
+        if sampleNum > 50:
             break
 
     cam.release()
@@ -225,7 +225,7 @@ def writeAttendance(ids):
 def TakeAttendance():
     fingerId = readFinger()
     if fingerId == '9':
-        print("not found register")
+        print("not found, register")
         updateMessage("Fingerprint not found\nRegister Fingerprint")
         return
     recognizer = cv2.face.LBPHFaceRecognizer_create()
@@ -372,7 +372,7 @@ phLabel = tk.Label(window, text="Enter Phone NO", width=18, fg="Black",
 phLabel.place(x=350, y=240)
 
 phEntry = tk.Entry(window, width=24, bg="#E4DCCF",
-                   fg="Black", font=('Arial', 22, ' bold '))
+                   fg="Black", font=('Arial', 22))
 phEntry.place(x=570, y=240)
 
 updateLabel = tk.Label(window, text=" Updates: ", width=18, fg="Black",
